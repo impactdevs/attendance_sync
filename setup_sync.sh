@@ -14,19 +14,45 @@ if [ -z "$PYTHON" ]; then
     exit 1
 fi
 
-# Check for venv module
+# Get Python version (e.g., 3.8, 3.11)
+PYTHON_MAJOR_MINOR=$($PYTHON -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+
+# Check for venv module and install if missing
+echo "📦 Checking for Python virtual environment package..."
 if ! $PYTHON -c "import venv" &> /dev/null; then
     echo "📦 Installing Python virtual environment package..."
     if command -v apt-get &> /dev/null; then
+        # Try generic package first
         sudo apt-get update
         sudo apt-get install -y python3-venv
+        
+        # If generic fails and the venv module is still not found, try version-specific
+        if ! $PYTHON -c "import venv" &> /dev/null; then
+            echo "ℹ️ Generic 'python3-venv' not sufficient. Trying version-specific 'python${PYTHON_MAJOR_MINOR}-venv'..."
+            sudo apt-get install -y "python${PYTHON_MAJOR_MINOR}-venv"
+        fi
+
+        # Final check after attempted installation
+        if ! $PYTHON -c "import venv" &> /dev/null; then
+            echo "❌ Could not install virtualenv for Python $PYTHON_MAJOR_MINOR."
+            echo "ℹ️ Please manually install python${PYTHON_MAJOR_MINOR}-venv or python3-virtualenv."
+            exit 1
+        fi
     elif command -v yum &> /dev/null; then
         sudo yum install -y python3-virtualenv
+        if ! $PYTHON -c "import venv" &> /dev/null; then
+            echo "❌ Could not install virtualenv for Python $PYTHON_MAJOR_MINOR."
+            echo "ℹ️ Please manually install python3-virtualenv."
+            exit 1
+        fi
     else
         echo "❌ Could not install virtualenv - unsupported package manager"
         echo "ℹ️ Please manually install python3-venv or python3-virtualenv"
         exit 1
     fi
+    echo "✅ Python virtual environment package installed."
+else
+    echo "✅ Python virtual environment package found."
 fi
 
 # Create virtual environment
@@ -35,6 +61,7 @@ if [ ! -d "$VENV_DIR" ]; then
     $PYTHON -m venv "$VENV_DIR"
     if [ $? -ne 0 ]; then
         echo "❌ Failed to create virtual environment"
+        echo "ℹ️ Ensure 'ensurepip' is available for your Python version."
         exit 1
     fi
     echo "✅ Virtual environment created at $VENV_DIR"
