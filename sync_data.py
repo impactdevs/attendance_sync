@@ -33,9 +33,9 @@ def load_config():
         with open(CONFIG_FILE) as f:
             config = json.load(f)
 
-        answer = input("Do you want to reconfigure settings? [y/N]: ").strip().lower()
-        if answer == 'y':
-            config = prompt_config()
+        # answer = input("Do you want to reconfigure settings? [y/N]: ").strip().lower()
+        # if answer == 'y':
+        #     config = prompt_config()
     else:
         config = prompt_config()
 
