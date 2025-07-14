@@ -5,6 +5,7 @@ SCRIPT_NAME="sync_attendance.py"
 LOG_FILE="/var/log/attendance_sync.log"
 SCRIPT_PATH="$(pwd)/$SCRIPT_NAME"
 USER_NAME="$(whoami)"
+VENV_DIR="$(pwd)/venv"
 
 # Check for Python3
 PYTHON=$(which python3)
@@ -13,52 +14,32 @@ if [ -z "$PYTHON" ]; then
     exit 1
 fi
 
-# Function to install pip
-install_pip() {
-    echo "⏳ Installing pip using Python's ensurepip module..."
-    if $PYTHON -m ensurepip --upgrade; then
-        echo "✅ pip installed successfully using ensurepip"
-    else
-        echo "⚠️ ensurepip failed, trying get-pip.py..."
-        GET_PIP="/tmp/get-pip.py"
-        if command -v curl &> /dev/null; then
-            curl -sSL https://bootstrap.pypa.io/get-pip.py -o $GET_PIP
-        elif command -v wget &> /dev/null; then
-            wget -q https://bootstrap.pypa.io/get-pip.py -O $GET_PIP
-        else
-            echo "❌ Could not download get-pip.py - install curl or wget first"
-            exit 1
-        fi
-        
-        $PYTHON $GET_PIP
-        if [ $? -ne 0 ]; then
-            echo "❌ Failed to install pip using get-pip.py"
-            rm -f $GET_PIP
-            exit 1
-        fi
-        rm -f $GET_PIP
-        echo "✅ pip installed successfully using get-pip.py"
-    fi
-}
-
-# Detect pip command
-if command -v pip3 &> /dev/null; then
-    PIP_CMD="pip3"
-elif command -v pip &> /dev/null; then
-    PIP_CMD="pip"
-elif $PYTHON -m pip --version &> /dev/null; then
-    PIP_CMD="$PYTHON -m pip"
-else
-    install_pip
-    # Verify installation after attempting to install
-    if command -v pip3 &> /dev/null; then
-        PIP_CMD="pip3"
-    else
-        PIP_CMD="$PYTHON -m pip"
+# Check if python3-venv is installed
+if ! $PYTHON -m venv --help &> /dev/null; then
+    echo "❌ python3-venv not found. Installing python3-venv..."
+    sudo apt update
+    sudo apt install -y python3-venv
+    if [ $? -ne 0 ]; then
+        echo "❌ Failed to install python3-venv"
+        exit 1
     fi
 fi
 
-echo "🔧 Installing/updating Python dependencies..."
+# Create virtual environment if it doesn't exist
+if [ ! -d "$VENV_DIR" ]; then
+    echo "⏳ Creating virtual environment in $VENV_DIR..."
+    $PYTHON -m venv "$VENV_DIR"
+    if [ $? -ne 0 ]; then
+        echo "❌ Failed to create virtual environment"
+        exit 1
+    fi
+fi
+
+# Activate virtual environment and set PIP_CMD
+source "$VENV_DIR/bin/activate"
+PIP_CMD="$VENV_DIR/bin/pip"
+
+echo "🔧 Installing/updating Python dependencies in virtual environment..."
 $PIP_CMD install --upgrade pip
 $PIP_CMD install mysql-connector-python requests
 
@@ -66,6 +47,9 @@ if [ $? -ne 0 ]; then
     echo "❌ Failed to install Python dependencies"
     exit 1
 fi
+
+# Path to Python executable in virtual environment
+VENV_PYTHON="$VENV_DIR/bin/python3"
 
 echo "🛠️ Creating systemd service..."
 
@@ -76,7 +60,7 @@ Description=Attendance Sync Script
 After=network.target
 
 [Service]
-ExecStart=$PYTHON $SCRIPT_PATH
+ExecStart=$VENV_PYTHON $SCRIPT_PATH
 Restart=always
 User=$USER_NAME
 WorkingDirectory=$(pwd)
