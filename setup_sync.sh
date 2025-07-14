@@ -5,11 +5,31 @@ SCRIPT_NAME="sync_attendance.py"
 LOG_FILE="/var/log/attendance_sync.log"
 SCRIPT_PATH="$(pwd)/$SCRIPT_NAME"
 USER_NAME="$(whoami)"
+
+# Check for Python3
 PYTHON=$(which python3)
+if [ -z "$PYTHON" ]; then
+    echo "❌ Python3 not found. Please install Python3."
+    exit 1
+fi
+
+# Detect pip command
+if command -v pip3 &> /dev/null; then
+    PIP_CMD="pip3"
+elif command -v pip &> /dev/null; then
+    PIP_CMD="pip"
+else
+    PIP_CMD="$PYTHON -m pip"
+fi
 
 echo "🔧 Installing Python dependencies..."
-pip install --upgrade pip
-pip install mysql-connector-python requests
+$PIP_CMD install --upgrade pip
+$PIP_CMD install mysql-connector-python requests
+
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to install Python dependencies"
+    exit 1
+fi
 
 echo "🛠️ Creating systemd service..."
 
@@ -32,12 +52,16 @@ WantedBy=multi-user.target
 EOF
 
 echo "🔄 Reloading systemd daemon..."
-sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
 
 echo "✅ Enabling and starting the $SERVICE_NAME service..."
 sudo systemctl enable $SERVICE_NAME
 sudo systemctl start $SERVICE_NAME
+
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to start service. Check journal: journalctl -u $SERVICE_NAME"
+    exit 1
+fi
 
 echo "🚀 $SERVICE_NAME is now running in the background."
 echo "📄 Logs: sudo tail -f $LOG_FILE"
