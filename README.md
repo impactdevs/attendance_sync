@@ -1,137 +1,183 @@
+-----
 
-# Attendance Sync Script
+# MySQL to API Sync Tool
 
-This repository contains a Python script to sync attendance records from a MySQL database to a Laravel API, along with setup and configuration files for easy deployment on a Linux server.
+This Python script provides a simple and efficient way to synchronize attendance records from a MySQL database to an external API. It's designed to run continuously, periodically checking for new records in your database and sending them to a specified API endpoint, then deleting the records from your local database upon successful transmission.
 
----
+-----
 
-## Repository Contents
+## Features
 
-* `sync_data.py` — Python script that reads attendance data from MySQL and posts to your Laravel API, then deletes synced records.
-* `config.json` — Configuration file storing database credentials, API URL, table info, and sync interval.
-* `setup_sync.sh` — Bash script to install dependencies, create and enable a systemd service to run the sync script continuously in the background.
+  * **Configurable Settings:** Easily set up your MySQL connection details, table and column names, API URL, and sync interval through an interactive prompt.
+  * **Automatic Syncing:** Continuously monitors your specified MySQL table for new records.
+  * **API Integration:** Sends attendance data to your API endpoint using `POST` requests.
+  * **Data Deletion:** Automatically deletes records from the MySQL database after successful API transmission, ensuring data integrity and preventing re-sending.
+  * **Error Handling:** Includes basic error handling for database connection issues and API request failures.
+  * **Persistent Configuration:** Saves your settings to a `config.json` file, so you don't have to re-enter them every time you run the script.
 
----
+-----
 
-## Prerequisites
+## Requirements
 
-* Linux server (Ubuntu, Debian, CentOS, etc.)
-* Python 3.7+ installed (`python3` command available)
-* MySQL server accessible with correct credentials
-* User with sudo privileges to install services and dependencies
+Before you begin, make sure you have the following installed:
 
----
+  * **Python 3.x**
+  * **`mysql-connector-python`**: For connecting to MySQL databases.
+  * **`requests`**: For making HTTP requests to your API.
 
-## Setup & Usage
-
-### 1. Place Files on Your Server
-
-Clone or copy the repository folder containing:
+You can install these Python libraries using pip:
 
 ```bash
-sync_data.py
-config.json
-setup_sync.sh
+pip install mysql-connector-python requests
 ```
 
----
+-----
 
-### 2. Edit `config.json`
+## How to Use
 
-Modify `config.json` to match your environment. Example:
+### 1\. Clone the Repository
+
+First, clone this repository to your local machine:
+
+```bash
+git clone <repository_url>
+cd <repository_directory>
+```
+
+### 2\. Run the Script
+
+Execute the script from your terminal:
+
+```bash
+python your_script_name.py
+```
+
+### 3\. Configure Settings
+
+The first time you run the script, or if you choose to reconfigure, you'll be prompted to enter your settings:
+
+```
+🛠️ Configure your settings:
+MySQL host [127.0.0.1]:
+MySQL user [root]:
+MySQL password: your_mysql_password
+MySQL database name: your_database_name
+Table name [attendances]: your_table_name
+ID column name [id or attendance_id]: your_id_column_name
+API URL (e.g., http://127.0.0.1:8000/api/attendances): your_api_endpoint
+Sync interval in seconds [60]: 30
+✅ Configuration saved.
+```
+
+  * **MySQL host**: The IP address or hostname of your MySQL server. (Default: `127.0.0.1`)
+  * **MySQL user**: Your MySQL username. (Default: `root`)
+  * **MySQL password**: Your MySQL password.
+  * **MySQL database name**: The name of the database containing your attendance records.
+  * **Table name**: The name of the table that stores attendance data. (Default: `attendances`)
+  * **ID column name**: The name of the primary key column in your attendance table. (Default: `id`)
+  * **API URL**: The full URL of your API endpoint where attendance data should be sent (e.g., `http://127.0.0.1:8000/api/attendances`).
+  * **Sync interval in seconds**: How often (in seconds) the script should check for new records. (Default: `60`)
+
+Your configuration will be saved in a file named `config.json` in the same directory as the script.
+
+### 4\. Running the Sync
+
+Once configured, the script will start syncing:
+
+```
+✅ Configuration saved.
+
+✅ Started syncing. Press Ctrl + C to stop.
+
+🔄 [2025-07-14 14:30:00.123456] Checking for new records...
+ℹ️ No records found.
+⏳ Sleeping 30 seconds...
+
+🔄 [2025-07-14 14:30:30.123456] Checking for new records...
+✅ Sent: {'staff_id': 101, 'access_date_and_time': '2025-07-14T10:00:00'}
+🗑️ Deleted record ID 1 from DB
+⏳ Sleeping 30 seconds...
+```
+
+The script will continue to run until you manually stop it.
+
+### 5\. Stopping the Sync
+
+To stop the syncing process, press `Ctrl + C` in your terminal. The script will gracefully shut down:
+
+```
+^C
+👋 Gracefully stopping sync...
+🔒 Database connection closed.
+```
+
+-----
+
+## Configuration File (`config.json`)
+
+The script uses a `config.json` file to store your settings. An example `config.json` file looks like this:
 
 ```json
 {
-  "host": "127.0.0.1",
-  "user": "your_mysql_user",
-  "password": "your_mysql_password",
-  "database": "your_database",
-  "table": "attendances",
-  "id_column": "attendance_id",
-  "api_url": "http://127.0.0.1:8000/api/attendances",
-  "interval": 60
+    "host": "127.0.0.1",
+    "user": "root",
+    "password": "your_mysql_password",
+    "database": "your_database_name",
+    "table": "attendances",
+    "id_column": "id",
+    "api_url": "http://127.0.0.1:8000/api/attendances",
+    "interval": 60
 }
 ```
 
-* `interval` is the sync frequency in seconds.
+If you need to change your settings later, you can either:
 
----
+  * Run the script and answer `y` when prompted to reconfigure.
+  * Manually edit the `config.json` file.
 
-### 3. Run Setup Script
+-----
 
-Make the setup script executable and run it to install dependencies and set up the systemd service:
+## Database Table Structure
 
-```bash
-chmod +x setup_sync.sh
-./setup_sync.sh
+Your attendance table in MySQL should ideally have at least the following columns:
+
+  * **`id`** (or your specified `id_column`): A unique identifier for each record.
+  * **`staff_id`**: The ID of the staff member.
+  * **`access_date_and_time`**: A `DATETIME` or `TIMESTAMP` column indicating when the attendance occurred.
+
+For example:
+
+```sql
+CREATE TABLE attendances (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    staff_id INT NOT NULL,
+    access_date_and_time DATETIME NOT NULL
+);
 ```
 
-This script will:
+-----
 
-* Install Python dependencies (`mysql-connector-python` and `requests`)
-* Create and enable a `systemd` service called `attendance-sync`
-* Start the service to run `sync_data.py` continuously in the background
-* Log output to `attendance_sync.log` in the script directory
+## API Endpoint Requirements
 
----
+Your API endpoint should be set up to receive `POST` requests with a JSON body similar to this:
 
-### 4. Manage the Service
-
-Check the service status:
-
-```bash
-sudo systemctl status attendance-sync
+```json
+{
+    "staff_id": 123,
+    "access_date_and_time": "2025-07-14T10:30:00"
+}
 ```
 
-View live logs:
+The API is expected to return a `201 Created` HTTP status code upon successful record creation. Any other status code will be considered an error, and the record will not be deleted from the local database.
 
-```bash
-tail -f attendance_sync.log
-```
+-----
 
-Stop the service:
+## Error Handling
 
-```bash
-sudo systemctl stop attendance-sync
-```
+The script includes basic error handling for:
 
-Disable autostart on reboot:
+  * **MySQL Connection Errors:** If the script cannot connect to the MySQL database, it will print an error message and exit.
+  * **API Request Failures:** If an API request fails (e.g., network issues, invalid URL), it will print a warning and attempt to retry in the next sync interval.
+  * **API Response Errors:** If the API returns a status code other than `201`, it will print the error code and response text. The record will not be deleted from the database in this case.
 
-```bash
-sudo systemctl disable attendance-sync
-```
-
----
-
-## How It Works
-
-* The Python script connects to your MySQL database and fetches attendance records.
-* It posts each record as JSON to the Laravel API endpoint configured in `config.json`.
-* Successfully posted records are deleted locally.
-* The process repeats continuously with a delay defined by `interval`.
-
----
-
-## Notes
-
-* Ensure your Laravel API endpoint accepts JSON POST requests and returns HTTP status 201 on success.
-* Test `sync_data.py` manually before setting up the service to confirm correct behavior.
-* You can modify `config.json` anytime; restart the service to apply changes:
-
-```bash
-sudo systemctl restart attendance-sync
-```
-
----
-
-## Troubleshooting
-
-* If the service fails to start or behaves unexpectedly, check the logs:
-
-```bash
-cat attendance_sync.log
-```
-
-* Verify database connectivity and API availability.
-* Make sure the system time is synchronized if timestamps matter.
-
+-----
