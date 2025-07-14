@@ -14,6 +14,21 @@ if [ -z "$PYTHON" ]; then
     exit 1
 fi
 
+# Check for venv module
+if ! $PYTHON -c "import venv" &> /dev/null; then
+    echo "📦 Installing Python virtual environment package..."
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update
+        sudo apt-get install -y python3-venv
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y python3-virtualenv
+    else
+        echo "❌ Could not install virtualenv - unsupported package manager"
+        echo "ℹ️ Please manually install python3-venv or python3-virtualenv"
+        exit 1
+    fi
+fi
+
 # Create virtual environment
 echo "🔧 Creating Python virtual environment..."
 if [ ! -d "$VENV_DIR" ]; then
@@ -25,6 +40,13 @@ if [ ! -d "$VENV_DIR" ]; then
     echo "✅ Virtual environment created at $VENV_DIR"
 else
     echo "ℹ️ Virtual environment already exists"
+fi
+
+# Verify virtual environment structure
+if [ ! -f "$VENV_DIR/bin/activate" ]; then
+    echo "❌ Virtual environment is incomplete - missing activation script"
+    echo "ℹ️ Try removing and recreating: rm -rf $VENV_DIR"
+    exit 1
 fi
 
 # Activate virtual environment
