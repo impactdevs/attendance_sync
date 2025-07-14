@@ -15,19 +15,29 @@ fi
 
 # Function to install pip
 install_pip() {
-    echo "⏳ Installing pip for Python3..."
+    echo "⏳ Installing pip using Python's ensurepip module..."
     if $PYTHON -m ensurepip --upgrade; then
-        echo "✅ pip installed successfully"
-    elif command -v apt-get &> /dev/null; then
-        sudo add-apt-repository universe
-        sudo apt-get update
-        sudo apt-get install -y python3-pip
-    elif command -v yum &> /dev/null; then
-        sudo yum install -y python3-pip
+        echo "✅ pip installed successfully using ensurepip"
     else
-        echo "❌ Could not install pip - unsupported package manager"
-        echo "ℹ️ Please manually install pip for Python3"
-        exit 1
+        echo "⚠️ ensurepip failed, trying get-pip.py..."
+        GET_PIP="/tmp/get-pip.py"
+        if command -v curl &> /dev/null; then
+            curl -sSL https://bootstrap.pypa.io/get-pip.py -o $GET_PIP
+        elif command -v wget &> /dev/null; then
+            wget -q https://bootstrap.pypa.io/get-pip.py -O $GET_PIP
+        else
+            echo "❌ Could not download get-pip.py - install curl or wget first"
+            exit 1
+        fi
+        
+        $PYTHON $GET_PIP
+        if [ $? -ne 0 ]; then
+            echo "❌ Failed to install pip using get-pip.py"
+            rm -f $GET_PIP
+            exit 1
+        fi
+        rm -f $GET_PIP
+        echo "✅ pip installed successfully using get-pip.py"
     fi
 }
 
