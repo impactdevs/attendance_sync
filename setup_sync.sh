@@ -14,42 +14,31 @@ if [ -z "$PYTHON" ]; then
     exit 1
 fi
 
-# Check if python3-venv is installed
-if ! $PYTHON -m venv --help &> /dev/null; then
-    echo "❌ python3-venv not found. Installing python3-venv..."
-    sudo apt update
-    sudo apt install -y python3-venv
-    if [ $? -ne 0 ]; then
-        echo "❌ Failed to install python3-venv"
-        exit 1
-    fi
-fi
-
-# Create virtual environment if it doesn't exist
+# Create virtual environment
+echo "🔧 Creating Python virtual environment..."
 if [ ! -d "$VENV_DIR" ]; then
-    echo "⏳ Creating virtual environment in $VENV_DIR..."
     $PYTHON -m venv "$VENV_DIR"
     if [ $? -ne 0 ]; then
         echo "❌ Failed to create virtual environment"
         exit 1
     fi
+    echo "✅ Virtual environment created at $VENV_DIR"
+else
+    echo "ℹ️ Virtual environment already exists"
 fi
 
-# Activate virtual environment and set PIP_CMD
+# Activate virtual environment
 source "$VENV_DIR/bin/activate"
-PIP_CMD="$VENV_DIR/bin/pip"
 
-echo "🔧 Installing/updating Python dependencies in virtual environment..."
-$PIP_CMD install --upgrade pip
-$PIP_CMD install mysql-connector-python requests
+# Install dependencies in virtual environment
+echo "📦 Installing Python dependencies in virtual environment..."
+"$VENV_DIR/bin/pip" install --upgrade pip
+"$VENV_DIR/bin/pip" install mysql-connector-python requests
 
 if [ $? -ne 0 ]; then
     echo "❌ Failed to install Python dependencies"
     exit 1
 fi
-
-# Path to Python executable in virtual environment
-VENV_PYTHON="$VENV_DIR/bin/python3"
 
 echo "🛠️ Creating systemd service..."
 
@@ -60,7 +49,7 @@ Description=Attendance Sync Script
 After=network.target
 
 [Service]
-ExecStart=$VENV_PYTHON $SCRIPT_PATH
+ExecStart=$VENV_DIR/bin/python $SCRIPT_PATH
 Restart=always
 User=$USER_NAME
 WorkingDirectory=$(pwd)
@@ -85,3 +74,4 @@ fi
 
 echo "🚀 $SERVICE_NAME is now running in the background."
 echo "📄 Logs: sudo tail -f $LOG_FILE"
+echo "💡 Using Python virtual environment at: $VENV_DIR"
