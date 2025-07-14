@@ -40,8 +40,8 @@ pip install mysql-connector-python requests
 First, clone this repository to your local machine:
 
 ```bash
-git clone <repository_url>
-cd <repository_directory>
+git clone https://github.com/impactdevs/attendance_sync.git
+cd attendance_sync
 ```
 
 ### 2\. Run the Script
@@ -49,7 +49,7 @@ cd <repository_directory>
 Execute the script from your terminal:
 
 ```bash
-python your_script_name.py
+python sync_data.py
 ```
 
 ### 3\. Configure Settings
