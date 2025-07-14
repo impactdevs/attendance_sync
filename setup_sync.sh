@@ -13,16 +13,41 @@ if [ -z "$PYTHON" ]; then
     exit 1
 fi
 
+# Function to install pip
+install_pip() {
+    echo "⏳ Installing pip for Python3..."
+    if $PYTHON -m ensurepip --upgrade; then
+        echo "✅ pip installed successfully"
+    elif command -v apt-get &> /dev/null; then
+        sudo apt-get update
+        sudo apt-get install -y python3-pip
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y python3-pip
+    else
+        echo "❌ Could not install pip - unsupported package manager"
+        echo "ℹ️ Please manually install pip for Python3"
+        exit 1
+    fi
+}
+
 # Detect pip command
 if command -v pip3 &> /dev/null; then
     PIP_CMD="pip3"
 elif command -v pip &> /dev/null; then
     PIP_CMD="pip"
-else
+elif $PYTHON -m pip --version &> /dev/null; then
     PIP_CMD="$PYTHON -m pip"
+else
+    install_pip
+    # Verify installation after attempting to install
+    if command -v pip3 &> /dev/null; then
+        PIP_CMD="pip3"
+    else
+        PIP_CMD="$PYTHON -m pip"
+    fi
 fi
 
-echo "🔧 Installing Python dependencies..."
+echo "🔧 Installing/updating Python dependencies..."
 $PIP_CMD install --upgrade pip
 $PIP_CMD install mysql-connector-python requests
 
