@@ -19,6 +19,7 @@ install_pip() {
     if $PYTHON -m ensurepip --upgrade; then
         echo "✅ pip installed successfully"
     elif command -v apt-get &> /dev/null; then
+        sudo add-apt-repository universe
         sudo apt-get update
         sudo apt-get install -y python3-pip
     elif command -v yum &> /dev/null; then
